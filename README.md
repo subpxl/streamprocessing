@@ -1,0 +1,2 @@
+# streamprocessing
+streamprocessing golang architecture 
