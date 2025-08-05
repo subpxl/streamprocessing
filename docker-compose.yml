@@ -1,29 +1,56 @@
 version: '3.8'
 
 services:
+
+  producer-service:
+    build: ./producer-service
+    ports:
+      - "8000:8000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+  consumer-service:
+    build: ./consumer-service
+    ports:
+      - "8001:8000"
+    environment:
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+      producer-service:
+        condition: service_started
+  analytics-service:
+    build: ./analytics-service
+    ports:
+      - "8002:8000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      producer-service:
+        condition: service_started
+      consumer-service:
+        condition: service_started
   kafka:
     image: confluentinc/cp-kafka:latest
     hostname: kafka
     container_name: kafka
-    ports:
-      - "9092:9092"
-      - "9093:9093"
     environment:
-      KAFKA_KRAFT_MODE: "true"  # Enables KRaft mode (no ZooKeeper)
-      KAFKA_PROCESS_ROLES: controller,broker  # Both roles in one node
+      KAFKA_KRAFT_MODE: "true"
+      KAFKA_PROCESS_ROLES: controller,broker
       KAFKA_NODE_ID: 1
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@localhost:9093"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      CLUSTER_ID: "Mk3OEYBSD34fcwNTJENDM2Qk"  # should be a unique string
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/var/lib/kafka/data
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      CLUSTER_ID: "Mk3OEYBSD34fcwNTJENDM2Qk"
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
