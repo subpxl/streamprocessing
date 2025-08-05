@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Real-Time Graph</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>📈 Real-Time Number from Go WebSocket</h1>
+  <canvas id="realtimeChart" width="600" height="300"></canvas>
+
+  <script>
+    const ctx = document.getElementById('realtimeChart').getContext('2d');
+
+    const data = {
+      labels: [], // timestamps or counts
+      datasets: [{
+        label: 'Live Number',
+        borderColor: 'rgb(75, 192, 192)',
+        data: [],
+        fill: false,
+        tension: 0.1
+      }]
+    };
+
+    const config = {
+      type: 'line',
+      data: data,
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Time'
+            }
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Value'
+            }
+          }
+        }
+      }
+    };
+
+    const chart = new Chart(ctx, config);
+
+    const ws = new WebSocket("ws://localhost:8000/ws");
+    let counter = 0;
+
+    ws.onmessage = function(event) {
+      const value = parseInt(event.data);
+      const now = new Date().toLocaleTimeString();
+
+      // Add new data point
+      chart.data.labels.push(now);
+      chart.data.datasets[0].data.push(value);
+
+      // Keep last 20 points
+      if (chart.data.labels.length > 20) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+
+      chart.update();
+    };
+
+    ws.onerror = function(event) {
+      console.error("WebSocket error:", event);
+    };
+  </script>
+</body>
+</html>
